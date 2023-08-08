@@ -12,20 +12,20 @@ public sealed class SelectTests : IDisposable
 {
     private readonly TestConsole _console = new();
     private readonly Logger _logger;
+    private readonly DnvmEnv _testEnv;
     private readonly TempDirectory _userHome = TestUtils.CreateTempDirectory();
-    private readonly TempDirectory _dnvmHome = TestUtils.CreateTempDirectory();
-    private readonly Dictionary<string, string> _envVars = new();
+    private readonly TempDirectory _dnvmHome;
+    private readonly Dictionary<string, string> _envVars;
     private readonly GlobalOptions _globalOptions;
 
     public SelectTests(ITestOutputHelper output)
     {
         var wrapper = new OutputWrapper(output);
         _logger = new Logger(_console);
+        _testEnv = TestUtils.CreatePhysicalTestEnv(out _dnvmHome, out _envVars);
         _globalOptions = new GlobalOptions {
             DnvmHome = _dnvmHome.Path,
             UserHome = _userHome.Path,
-            GetUserEnvVar = s => _envVars[s],
-            SetUserEnvVar = (name, val) => _envVars[name] = val,
         };
     }
 
@@ -41,7 +41,7 @@ public sealed class SelectTests : IDisposable
         await TaskScope.With(async scope =>
         {
             await using var mockServer = new MockServer(scope);
-            var result = await InstallCommand.Run(_globalOptions, _logger, new CommandArguments.InstallArguments
+            var result = await InstallCommand.Run(_testEnv, _globalOptions, _logger, new CommandArguments.InstallArguments
             {
                 Channel = Channel.Latest,
                 FeedUrl = mockServer.PrefixString,
@@ -50,7 +50,7 @@ public sealed class SelectTests : IDisposable
             var defaultSdkDir = GlobalOptions.DefaultSdkDirName;
             var defaultDotnet = Path.Combine(_globalOptions.DnvmHome, GlobalOptions.DefaultSdkDirName.Name, Utilities.DotnetExeName);
             Assert.True(File.Exists(defaultDotnet));
-            result = await InstallCommand.Run(_globalOptions, _logger, new CommandArguments.InstallArguments
+            result = await InstallCommand.Run(_testEnv, _globalOptions, _logger, new CommandArguments.InstallArguments
             {
                 Channel = Channel.Preview,
                 FeedUrl = mockServer.PrefixString,
@@ -68,7 +68,7 @@ public sealed class SelectTests : IDisposable
             Assert.Equal(GlobalOptions.DefaultSdkDirName, manifest.CurrentSdkDir);
 
             var previewSdkDir = new SdkDirName("preview");
-            manifest = (await SelectCommand.RunWithManifest(_globalOptions.DnvmHome, previewSdkDir, manifest, _logger)).Unwrap();
+            manifest = (await SelectCommand.RunWithManifest(_testEnv, previewSdkDir, manifest, _logger)).Unwrap();
 
             Assert.Equal(previewSdkDir, manifest.CurrentSdkDir);
             AssertSymlinkTarget(dotnetSymlink, previewSdkDir);
@@ -88,7 +88,7 @@ public sealed class SelectTests : IDisposable
                 SdkDirName = dn
             })
         };
-        var result = await SelectCommand.RunWithManifest(_globalOptions.DnvmHome, new SdkDirName("bad"), manifest, _logger);
+        var result = await SelectCommand.RunWithManifest(_testEnv, new SdkDirName("bad"), manifest, _logger);
         Assert.Equal(SelectCommand.Result.BadDirName, result);
 
         Assert.Equal("""

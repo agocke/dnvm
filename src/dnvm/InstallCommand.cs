@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Serde.Json;
+using Zio;
 using static Dnvm.Utilities;
 
 namespace Dnvm;
@@ -67,12 +68,12 @@ public sealed class InstallCommand
         };
     }
 
-    public static Task<Result> Run(GlobalOptions options, Logger logger, CommandArguments.InstallArguments args)
+    public static Task<Result> Run(DnvmEnv env, GlobalOptions options, Logger logger, CommandArguments.InstallArguments args)
     {
-        return new InstallCommand(options, logger, args).Run();
+        return new InstallCommand(options, logger, args).Run(env);
     }
 
-    public async Task<Result> Run()
+    public async Task<Result> Run(DnvmEnv env)
     {
         _logger.Info("Install Directory: " + _dnvmHome);
         _logger.Info("SDK install directory: " + SdkInstallPath);
@@ -88,7 +89,7 @@ public sealed class InstallCommand
         }
 
         return await InstallLatestFromChannel(
-            _dnvmHome,
+            env,
             _logger,
             _installArgs.Channel,
             _installArgs.Force,
@@ -98,7 +99,7 @@ public sealed class InstallCommand
     }
 
     internal static async Task<Result> InstallLatestFromChannel(
-        string dnvmHome,
+        DnvmEnv env,
         Logger logger,
         Channel channel,
         bool force,
@@ -106,11 +107,10 @@ public sealed class InstallCommand
         string manifestPath,
         SdkDirName sdkDir)
     {
-        string sdkInstallDir = Path.Combine(dnvmHome, sdkDir.Name);
         Manifest manifest;
         try
         {
-            manifest = ManifestUtils.ReadOrCreateManifest(manifestPath);
+            manifest = env.ReadManifest();
         }
         catch (InvalidDataException)
         {
@@ -168,7 +168,7 @@ public sealed class InstallCommand
         }
 
         var installResult = await InstallSdkVersionFromChannel(
-            dnvmHome,
+            env,
             logger,
             latestVersion,
             rid,
@@ -203,7 +203,7 @@ public sealed class InstallCommand
     }
 
     public static async Task<Result> InstallSdkVersionFromChannel(
-        string dnvmHome,
+        DnvmEnv env,
         Logger logger,
         string latestVersion,
         RID rid,
@@ -211,7 +211,6 @@ public sealed class InstallCommand
         Manifest manifest,
         SdkDirName sdkDirName)
     {
-        var sdkInstallPath = Path.Combine(dnvmHome, sdkDirName.Name);
         string archiveName = ConstructArchiveName(latestVersion, rid, Utilities.ZipSuffix);
         using var tempDir = new DirectoryResource(Directory.CreateTempSubdirectory().FullName);
         string archivePath = Path.Combine(tempDir.Path, archiveName);
@@ -237,6 +236,7 @@ public sealed class InstallCommand
             await archiveHttpStream.CopyToAsync(tempArchiveFile);
             await tempArchiveFile.FlushAsync();
         }
+        var sdkInstallPath = env.Vfs.ConvertPathToInternal(UPath.Root / sdkDirName.Name);
         logger.Log($"Installing to {sdkInstallPath}");
         string? extractResult = await Utilities.ExtractArchiveToDir(archivePath, sdkInstallPath);
         File.Delete(archivePath);
@@ -260,7 +260,7 @@ public sealed class InstallCommand
                 return Result.ExtractFailed;
             }
         }
-        CreateSymlinkIfMissing(dnvmHome, sdkDirName);
+        CreateSymlinkIfMissing(env, sdkDirName);
 
         return Result.Success;
     }
@@ -288,8 +288,9 @@ public sealed class InstallCommand
     /// Doesn't use a symlink on Windows because the dotnet muxer doesn't properly resolve through
     /// symlinks.
     /// </remarks>
-    internal static void RetargetSymlink(string dnvmHome, SdkDirName sdkDirName)
+    internal static void RetargetSymlink(DnvmEnv env, SdkDirName sdkDirName)
     {
+        var dnvmHome = env.Vfs.ConvertPathToInternal(UPath.Root);
         var symlinkPath = Path.Combine(dnvmHome, DotnetSymlinkName);
         var sdkInstallDir = Path.Combine(dnvmHome, sdkDirName.Name);
         // Delete if it already exists
@@ -313,12 +314,13 @@ public sealed class InstallCommand
         }
     }
 
-    private static void CreateSymlinkIfMissing(string dnvmHome, SdkDirName sdkDirName)
+    private static void CreateSymlinkIfMissing(DnvmEnv env, SdkDirName sdkDirName)
     {
+        var dnvmHome = env.Vfs.ConvertPathToInternal(UPath.Root);
         var symlinkPath = Path.Combine(dnvmHome, DotnetSymlinkName);
         if (!File.Exists(symlinkPath))
         {
-            RetargetSymlink(dnvmHome, sdkDirName);
+            RetargetSymlink(env, sdkDirName);
         }
     }
 

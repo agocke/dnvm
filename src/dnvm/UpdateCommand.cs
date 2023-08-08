@@ -43,9 +43,9 @@ public sealed partial class UpdateCommand
         _dnvmHome = options.DnvmHome;
     }
 
-    public static Task<Result> Run(GlobalOptions options, Logger logger, CommandArguments.UpdateArguments args)
+    public static Task<Result> Run(DnvmEnv env, GlobalOptions options, Logger logger, CommandArguments.UpdateArguments args)
     {
-        return new UpdateCommand(options, logger, args).Run();
+        return new UpdateCommand(options, logger, args).Run(env);
     }
 
     public enum Result
@@ -56,7 +56,7 @@ public sealed partial class UpdateCommand
         SelfUpdateFailed
     }
 
-    public async Task<Result> Run()
+    public async Task<Result> Run(DnvmEnv env)
     {
         if (_args.Self)
         {
@@ -77,7 +77,7 @@ public sealed partial class UpdateCommand
 
         var manifest = ManifestUtils.ReadOrCreateManifest(_manifestPath);
         return await UpdateSdks(
-            _dnvmHome,
+            env,
             _logger,
             releaseIndex,
             manifest,
@@ -89,7 +89,7 @@ public sealed partial class UpdateCommand
     }
 
     public static async Task<Result> UpdateSdks(
-        string dnvmHome,
+        DnvmEnv env,
         Logger logger,
         DotnetReleasesIndex releasesIndex,
         Manifest manifest,
@@ -123,7 +123,7 @@ public sealed partial class UpdateCommand
                 {
                     var sdkDir = manifest.TrackedChannels.First(tc => tc.ChannelName == c).SdkDirName;
                     _ = await InstallCommand.InstallSdkVersionFromChannel(
-                        dnvmHome,
+                        env,
                         logger,
                         newestAvailable.LatestSdk,
                         Utilities.CurrentRID,

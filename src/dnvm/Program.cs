@@ -23,14 +23,15 @@ public static class Program
         var logger = new Logger(AnsiConsole.Console);
         var globalOptions = GetGlobalConfig();
         Directory.CreateDirectory(globalOptions.DnvmHome);
-        var dnvmFs = DnvmFs.CreatePhysical(globalOptions.DnvmHome);
+        using var env = DnvmEnv.CreateDefault(globalOptions.DnvmHome);
+
         return options.Command switch
         {
-            CommandArguments.InstallArguments o => (int)await InstallCommand.Run(globalOptions, logger, o),
-            CommandArguments.UpdateArguments o => (int)await UpdateCommand.Run(globalOptions, logger, o),
-            CommandArguments.ListArguments => (int)await ListCommand.Run(logger, dnvmFs),
-            CommandArguments.SelectArguments o => (int)await SelectCommand.Run(globalOptions, logger, o),
-            CommandArguments.SelfInstallArguments o => (int)await SelfInstallCommand.Run(dnvmFs, globalOptions, logger, o),
+            CommandArguments.InstallArguments o => (int)await InstallCommand.Run(env, globalOptions, logger, o),
+            CommandArguments.UpdateArguments o => (int)await UpdateCommand.Run(env, globalOptions, logger, o),
+            CommandArguments.ListArguments => (int)await ListCommand.Run(logger, env),
+            CommandArguments.SelectArguments o => (int)await SelectCommand.Run(env, globalOptions, logger, o),
+            CommandArguments.SelfInstallArguments o => (int)await SelfInstallCommand.Run(env, globalOptions, logger, o),
             _ => throw ExceptionUtilities.Unreachable
         };
     }

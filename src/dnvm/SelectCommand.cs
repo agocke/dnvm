@@ -16,11 +16,11 @@ public static class SelectCommand
         BadDirName,
     }
 
-    public static async Task<Result> Run(GlobalOptions options, Logger logger, CommandArguments.SelectArguments args)
+    public static async Task<Result> Run(DnvmEnv env, GlobalOptions options, Logger logger, CommandArguments.SelectArguments args)
     {
         var newDir = new SdkDirName(args.SdkDirName);
         var manifest = ManifestUtils.ReadOrCreateManifest(options.ManifestPath);
-        switch (await RunWithManifest(options.DnvmHome, newDir, manifest, logger))
+        switch (await RunWithManifest(env, newDir, manifest, logger))
         {
             case Result<Manifest, Result>.Ok(var newManifest):
                 File.WriteAllText(options.ManifestPath, JsonSerializer.Serialize(newManifest));
@@ -32,7 +32,7 @@ public static class SelectCommand
         };
     }
 
-    public static async ValueTask<Result<Manifest, Result>> RunWithManifest(string dnvmHome, SdkDirName newDir, Manifest manifest, Logger logger)
+    public static async ValueTask<Result<Manifest, Result>> RunWithManifest(DnvmEnv env, SdkDirName newDir, Manifest manifest, Logger logger)
     {
         var validDirs = manifest.TrackedChannels.Select(c => c.SdkDirName).ToList();
 
@@ -47,16 +47,16 @@ public static class SelectCommand
             return Result.BadDirName;
         }
 
-        return await SelectNewDir(dnvmHome, newDir, manifest);
+        return await SelectNewDir(env, newDir, manifest);
     }
 
     /// <summary>
     /// Replaces the dotnet symlink with one pointing to the new SDK and
     /// updates the manifest to reflect the new SDK dir.
     /// </summary>
-    private static Task<Manifest> SelectNewDir(string dnvmHome, SdkDirName newDir, Manifest manifest)
+    private static Task<Manifest> SelectNewDir(DnvmEnv env, SdkDirName newDir, Manifest manifest)
     {
-        InstallCommand.RetargetSymlink(dnvmHome, newDir);
+        InstallCommand.RetargetSymlink(env, newDir);
         return Task.FromResult(manifest with { CurrentSdkDir = newDir });
     }
 }

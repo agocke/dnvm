@@ -32,8 +32,6 @@ public readonly record struct GlobalOptions
     public static readonly GlobalOptions Default = new() {
         UserHome = GetFolderPath(SpecialFolder.UserProfile, SpecialFolderOption.DoNotVerify),
         DnvmHome = DefaultDnvmHome,
-        GetUserEnvVar = s => GetEnvironmentVariable(s, EnvironmentVariableTarget.User),
-        SetUserEnvVar = (name, val) => Environment.SetEnvironmentVariable(name, val, EnvironmentVariableTarget.User),
     };
 
     public required string DnvmHome { get; init; }
@@ -41,9 +39,6 @@ public readonly record struct GlobalOptions
     private readonly string? _dnvmInstallPath;
     public string DnvmInstallPath { get => _dnvmInstallPath ?? DnvmHome; init => _dnvmInstallPath = value; }
     public required string UserHome { get; init; }
-
-    public required Func<string, string?> GetUserEnvVar { get; init; }
-    public required Action<string, string> SetUserEnvVar { get; init; }
 
     public string ManifestPath => Path.Combine(DnvmHome, ManifestFileName);
 }

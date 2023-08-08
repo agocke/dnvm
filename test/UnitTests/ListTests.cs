@@ -9,10 +9,16 @@ public sealed class ListTests
 {
     private readonly TestConsole _console = new();
     private readonly Logger _logger;
+    private readonly DnvmEnv _memoryEnv;
 
     public ListTests()
     {
        _logger = new Logger(_console);
+        var envVars = new Dictionary<string, string>();
+        _memoryEnv = new DnvmEnv(
+            new MemoryFileSystem(),
+            getUserEnvVar: s => envVars[s],
+            setUserEnvVar: (name, val) => envVars[name] = val);
     }
 
     [Fact]
@@ -44,7 +50,7 @@ Installed SDKs:
         var manifest = Manifest.Empty
             .AddSdk(new InstalledSdk("42.42.42"), Channel.Latest);
 
-        var home = new DnvmFs(new MemoryFileSystem());
+        var home = _memoryEnv;
         home.WriteManifest(manifest);
 
         var ret = await ListCommand.Run(_logger, home);

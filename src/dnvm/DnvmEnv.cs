@@ -8,7 +8,10 @@ using Zio.FileSystems;
 
 namespace Dnvm;
 
-public sealed class DnvmFs : IDisposable
+/// <summary>
+/// Represents the external environment of the dnvm tool.
+/// </summary>
+public sealed class DnvmEnv : IDisposable
 {
     public const string ManifestFileName = "dnvmManifest.json";
 
@@ -16,19 +19,30 @@ public sealed class DnvmFs : IDisposable
 
     public static UPath ManifestPath => UPath.Root / ManifestFileName;
     public static UPath EnvPath => UPath.Root / "env";
+    public static UPath DnvmExePath => UPath.Root / Utilities.DnvmExeName;
 
     public string RealPath => Vfs.ConvertPathToInternal(UPath.Root);
 
-    public static DnvmFs CreatePhysical(string realPath)
+    public static DnvmEnv CreateDefault(string dnvmHome)
     {
         var physicalFs = new PhysicalFileSystem();
-        return new DnvmFs(new SubFileSystem(physicalFs, physicalFs.ConvertPathFromInternal(realPath)));
+        return new DnvmEnv(new SubFileSystem(physicalFs, physicalFs.ConvertPathFromInternal(dnvmHome)),
+            getUserEnvVar: s => Environment.GetEnvironmentVariable(s, EnvironmentVariableTarget.User),
+            setUserEnvVar: (name, val) => Environment.SetEnvironmentVariable(name, val, EnvironmentVariableTarget.User));
     }
 
-    public DnvmFs(IFileSystem vfs)
+    public DnvmEnv(
+        IFileSystem vfs,
+        Func<string, string?> getUserEnvVar,
+        Action<string, string> setUserEnvVar)
     {
         Vfs = vfs;
+        GetUserEnvVar = getUserEnvVar;
+        SetUserEnvVar = setUserEnvVar;
     }
+
+    public Func<string, string?> GetUserEnvVar { get; }
+    public Action<string, string> SetUserEnvVar { get; }
 
     /// <summary>
     /// Reads a manifest (any version) from the given path and returns

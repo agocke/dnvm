@@ -16,9 +16,10 @@ public sealed class SelfInstallTests
         "dnvm_aot",
         Utilities.DnvmExeName);
 
-    private readonly TempDirectory _dnvmHome = TestUtils.CreateTempDirectory();
+    private readonly TempDirectory _dnvmHome;
     private readonly TempDirectory _userHome = TestUtils.CreateTempDirectory();
-    private readonly Dictionary<string, string> _envVars = new();
+    private readonly Dictionary<string, string> _envVars;
+    private readonly DnvmEnv _testEnv;
     private readonly GlobalOptions _globalOptions;
     private readonly ITestOutputHelper _testOutput;
 
@@ -28,9 +29,8 @@ public sealed class SelfInstallTests
         _globalOptions = new() {
             DnvmHome = _dnvmHome.Path,
             UserHome = _userHome.Path,
-            GetUserEnvVar = s => _envVars[s],
-            SetUserEnvVar = (name, val) => _envVars[name] = val,
         };
+        _testEnv = TestUtils.CreatePhysicalTestEnv(out _dnvmHome, out _envVars);
     }
 
     private static Task TestWithServer(Func<MockServer, Task> test)
@@ -178,16 +178,14 @@ echo "DOTNET_ROOT: $DOTNET_ROOT"
     public async Task RunUpdateSelfInstaller()
     {
         using var srcTmpDir = TestUtils.CreateTempDirectory();
-        using var dnvmHome = TestUtils.CreateTempDirectory();
-        using var dnvmFs = DnvmFs.CreatePhysical(dnvmHome.Path);
         var dnvmTmpPath = srcTmpDir.CopyFile(SelfInstallTests.DnvmExe);
 
         // Create a dest dnvm home that looks like a previous install
         const string helloString = "Hello from dnvm test";
-        var prevDnvmPath = Path.Combine(dnvmHome.Path, Utilities.DnvmExeName);
+        var prevDnvmPath = Path.Combine(_dnvmHome.Path, Utilities.DnvmExeName);
         Assets.MakeFakeExe(prevDnvmPath, helloString);
         // Create a fake dotnet
-        var sdkDir = Path.Combine(dnvmHome.Path, "dn");
+        var sdkDir = Path.Combine(_dnvmHome.Path, "dn");
         Directory.CreateDirectory(sdkDir);
         var fakeDotnet = Path.Combine(sdkDir, Utilities.DotnetExeName);
         Assets.MakeFakeExe(fakeDotnet, "Hello from dotnet test");
@@ -197,7 +195,7 @@ echo "DOTNET_ROOT: $DOTNET_ROOT"
         var result = await ProcUtil.RunWithOutput(
             dnvmTmpPath,
             $"selfinstall -v --update",
-            new() { ["DNVM_HOME"] = dnvmHome.Path });
+            new() { ["DNVM_HOME"] = _dnvmHome.Path });
 
         Assert.Equal(0, result.ExitCode);
 
@@ -212,15 +210,15 @@ echo "DOTNET_ROOT: $DOTNET_ROOT"
             Assert.Equal(newFileHash, oldFileHash);
         }
         // Self-install update does not modify the manifest (or create one if it doesn't exist)
-        Assert.False(dnvmFs.Vfs.FileExists(DnvmFs.ManifestPath));
+        Assert.False(_testEnv.Vfs.FileExists(DnvmEnv.ManifestPath));
         if (!OperatingSystem.IsWindows())
         {
             // Updated env file should be created
-            Assert.True(dnvmFs.Vfs.FileExists(DnvmFs.EnvPath));
+            Assert.True(_testEnv.Vfs.FileExists(DnvmEnv.EnvPath));
             // source the sh script and confirm that dnvm and dotnet are on the path
             var src = $"""
 set -e
-. "{dnvmFs.Vfs.ConvertPathToInternal(DnvmFs.EnvPath)}"
+. "{_testEnv.Vfs.ConvertPathToInternal(DnvmEnv.EnvPath)}"
 echo "dnvm: `which dnvm`"
 echo "dotnet: `which dotnet`"
 echo "DOTNET_ROOT: $DOTNET_ROOT"
@@ -228,7 +226,7 @@ echo "DOTNET_ROOT: $DOTNET_ROOT"
             var shellResult = await ProcUtil.RunShell(src);
 
             Assert.Contains("dnvm: " + prevDnvmPath, shellResult.Out);
-            Assert.Contains("dotnet: " + Path.Combine(dnvmHome.Path, Utilities.DotnetExeName), shellResult.Out);
+            Assert.Contains("dotnet: " + Path.Combine(_dnvmHome.Path, Utilities.DotnetExeName), shellResult.Out);
             Assert.Contains("DOTNET_ROOT: " + sdkDir, shellResult.Out);
         }
     }
