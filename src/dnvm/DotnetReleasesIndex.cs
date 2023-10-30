@@ -81,5 +81,34 @@ public partial record DotnetReleasesIndex
         /// The support phase the release is in, e.g. 'active' or 'eol'.
         /// </summary>
         public required string SupportPhase { get; init; }
+
+        [SerdeMemberOptions(Rename = "releases.json")]
+        public string? ReleasesJson { get; init; } = null;
+    }
+}
+
+[GenerateDeserialize]
+public partial record ChannelReleaseIndex
+{
+    public required EqArray<ChannelRelease> Releases { get; init; }
+
+    [GenerateDeserialize]
+    public partial record ChannelRelease
+    {
+        public required Component Runtime { get; init; }
+
+        public required Component Sdk { get; init; }
+
+        [SerdeMemberOptions(Rename = "aspnetcore-runtime")]
+        public required Component AspNet { get; init; }
+
+        [SerdeMemberOptions(Rename = "windowsdesktop")]
+        public required Component WindowsDesktop { get; init;}
+    }
+
+    [GenerateDeserialize]
+    public partial record Component
+    {
+        public string? Version { get; init; }
     }
 }
