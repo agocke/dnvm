@@ -126,7 +126,7 @@ public sealed record class CommandLineArguments(CommandArguments Command)
             var track = syntax.DefineCommand("track", ref commandName, "Start tracking a new channel");
             if (track.IsActive)
             {
-                Channel? channel = null;
+                Channel? channelOpt = null;
                 bool verbose = default;
                 bool force = default;
                 bool yes = false;
@@ -139,11 +139,16 @@ public sealed record class CommandLineArguments(CommandArguments Command)
                 syntax.DefineOption("prereqs", ref prereqs, "Print prereqs for dotnet on Ubuntu");
                 syntax.DefineOption("feed-url", ref feedUrl, $"Set the feed URL to download the SDK from.");
                 syntax.DefineOption("s|sdkDir", ref sdkDir, "Track the channel in a separate directory with the given name.");
-                syntax.DefineParameter("channel", ref channel, ChannelParse, $"Track the channel specified.");
+                syntax.DefineParameter("channel", ref channelOpt, ChannelParse, $"Track the channel specified.");
+
+                if (channelOpt is not {} channel)
+                {
+                    throw new ArgumentSyntaxException("Missing channel");
+                }
 
                 command = new CommandArguments.TrackArguments
                 {
-                    Channel = channel.Unwrap(),
+                    Channel = channel,
                     Verbose = verbose,
                     Force = force,
                     Yes = yes,

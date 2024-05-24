@@ -7,6 +7,15 @@ namespace Dnvm.Test;
 public sealed class CommandLineTests
 {
     [Fact]
+    public void TrackHelp()
+    {
+        Assert.Throws<ArgumentSyntaxException>(() => CommandLineArguments.Parse([
+            "track",
+            "-h"
+        ]));
+    }
+
+    [Fact]
     public void TrackMajorMinor()
     {
         var options = CommandLineArguments.Parse([
