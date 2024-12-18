@@ -229,7 +229,7 @@ public static class Utilities
 
     public static async Task<string?> ExtractArchiveToDir(string archivePath, DnvmEnv dnvmFs, UPath dest)
     {
-        dnvmFs.Vfs.CreateDirectory(dest);
+        dnvmFs.HomeFs.CreateDirectory(dest);
         var tempFs = dnvmFs.TempFs;
         var tempExtractDir = UPath.Root / Path.GetRandomFileName();
         tempFs.CreateDirectory(tempExtractDir);
@@ -269,11 +269,11 @@ public static class Utilities
 
                 if (fsItem.IsDirectory)
                 {
-                    dnvmFs.Vfs.CreateDirectory(destPath);
+                    dnvmFs.HomeFs.CreateDirectory(destPath);
                 }
                 else
                 {
-                    ForceReplaceFile(tempFs, fsItem.Path, dnvmFs.Vfs, destPath);
+                    ForceReplaceFile(tempFs, fsItem.Path, dnvmFs.HomeFs, destPath);
                 }
             }
         }

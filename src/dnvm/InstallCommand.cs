@@ -243,7 +243,7 @@ public static partial class InstallCommand
             logger.Info("chmoding downloaded host");
             try
             {
-                Utilities.ChmodExec(env.Vfs, dotnetExePath);
+                Utilities.ChmodExec(env.HomeFs, dotnetExePath);
             }
             catch (Exception e)
             {
@@ -276,7 +276,7 @@ public static partial class InstallCommand
 
     internal static void CreateSymlinkIfMissing(DnvmEnv dnvmFs, SdkDirName sdkDirName)
     {
-        var symlinkPath = dnvmFs.Vfs.ConvertPathToInternal(UPath.Root + Utilities.DotnetSymlinkName);
+        var symlinkPath = dnvmFs.HomeFs.ConvertPathToInternal(UPath.Root + Utilities.DotnetSymlinkName);
         if (!File.Exists(symlinkPath))
         {
             RetargetSymlink(dnvmFs, sdkDirName);
@@ -303,7 +303,7 @@ public static partial class InstallCommand
     /// </remarks>
     internal static void RetargetSymlink(DnvmEnv dnvmFs, SdkDirName sdkDirName)
     {
-        var dnvmHome = dnvmFs.Vfs.ConvertPathToInternal(UPath.Root);
+        var dnvmHome = dnvmFs.HomeFs.ConvertPathToInternal(UPath.Root);
         RetargetSymlink(dnvmHome, sdkDirName);
 
         static void RetargetSymlink(string dnvmHome, SdkDirName sdkDirName)

@@ -388,6 +388,8 @@ public abstract record CommandArguments
         public bool Verbose { get; init; } = false;
         public bool DryRun { get; init; } = false;
     }
+
+    public sealed record RestoreArguments : CommandArguments;
 }
 
 public sealed record class CommandLineArguments(CommandArguments? Command)

@@ -32,8 +32,8 @@ public sealed class TrackTests
         Assert.Equal(Result.Success, retVal);
         var sdkInstallDir = DnvmEnv.GetSdkPath(DnvmEnv.DefaultSdkDirName);
         var dotnetFile = sdkInstallDir / (Utilities.DotnetExeName);
-        Assert.True(env.Vfs.FileExists(dotnetFile));
-        Assert.Contains(Assets.ArchiveToken, env.Vfs.ReadAllText(dotnetFile));
+        Assert.True(env.HomeFs.FileExists(dotnetFile));
+        Assert.Contains(Assets.ArchiveToken, env.HomeFs.ReadAllText(dotnetFile));
 
         var manifest = await env.ReadManifest();
         var installedVersion = SemVersion.Parse(server.ReleasesIndexJson.Releases[0].LatestSdk, SemVersionStyles.Strict);
@@ -65,7 +65,7 @@ public sealed class TrackTests
             Channel = new Channel.Lts(),
             Verbose = true,
         };
-        var homeFs = env.Vfs;
+        var homeFs = env.HomeFs;
         var sdkInstallDir = DnvmEnv.GetSdkPath(DnvmEnv.DefaultSdkDirName);
         Assert.False(homeFs.DirectoryExists(sdkInstallDir));
         Assert.True(homeFs.DirectoryExists(UPath.Root));
@@ -88,12 +88,12 @@ public sealed class TrackTests
         };
         // Preview used to be isolated, but it shouldn't be anymore
         var sdkInstallDir = DnvmEnv.GetSdkPath(DnvmEnv.DefaultSdkDirName);
-        Assert.False(env.Vfs.DirectoryExists(sdkInstallDir));
-        Assert.True(env.Vfs.DirectoryExists(UPath.Root));
+        Assert.False(env.HomeFs.DirectoryExists(sdkInstallDir));
+        Assert.True(env.HomeFs.DirectoryExists(UPath.Root));
         Assert.Equal(Result.Success, await TrackCommand.Run(env, _logger, args));
         var dotnetFile = sdkInstallDir / Utilities.DotnetExeName;
-        Assert.True(env.Vfs.FileExists(dotnetFile));
-        Assert.Contains(Assets.ArchiveToken, env.Vfs.ReadAllText(dotnetFile));
+        Assert.True(env.HomeFs.FileExists(dotnetFile));
+        Assert.Contains(Assets.ArchiveToken, env.HomeFs.ReadAllText(dotnetFile));
     });
 
     [Fact]
@@ -110,12 +110,12 @@ public sealed class TrackTests
         };
         // Check that the SDK is installed is isolated into the "sts" subdirectory
         var sdkInstallDir = DnvmEnv.GetSdkPath(new SdkDirName(dirName));
-        Assert.False(env.Vfs.DirectoryExists(sdkInstallDir));
-        Assert.True(env.Vfs.DirectoryExists(UPath.Root));
+        Assert.False(env.HomeFs.DirectoryExists(sdkInstallDir));
+        Assert.True(env.HomeFs.DirectoryExists(UPath.Root));
         Assert.Equal(Result.Success, await TrackCommand.Run(env, _logger, args));
         var dotnetFile = sdkInstallDir / (Utilities.DotnetExeName);
-        Assert.True(env.Vfs.FileExists(dotnetFile));
-        Assert.Contains(Assets.ArchiveToken, env.Vfs.ReadAllText(dotnetFile));
+        Assert.True(env.HomeFs.FileExists(dotnetFile));
+        Assert.Contains(Assets.ArchiveToken, env.HomeFs.ReadAllText(dotnetFile));
     });
 
     [Fact]

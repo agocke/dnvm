@@ -1,4 +1,5 @@
 
+using Zio;
 using Zio.FileSystems;
 
 namespace Dnvm.Test;
@@ -7,6 +8,7 @@ public sealed class TestEnv : IDisposable
 {
     private readonly TempDirectory _userHome = TestUtils.CreateTempDirectory();
     private readonly TempDirectory _dnvmHome = TestUtils.CreateTempDirectory();
+    private readonly TempDirectory _workingDir = TestUtils.CreateTempDirectory();
     private readonly Dictionary<string, string> _envVars = new();
 
     public DnvmEnv DnvmEnv { get; init; }
@@ -17,6 +19,8 @@ public sealed class TestEnv : IDisposable
         DnvmEnv = new DnvmEnv(
                 userHome: _userHome.Path,
                 new SubFileSystem(physicalFs, physicalFs.ConvertPathFromInternal(_dnvmHome.Path)),
+                new SubFileSystem(physicalFs, physicalFs.ConvertPathFromInternal(_workingDir.Path)),
+                UPath.Root,
                 isPhysical: true,
                 getUserEnvVar: s => _envVars[s],
                 setUserEnvVar: (name, val) => _envVars[name] = val,

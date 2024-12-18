@@ -40,6 +40,15 @@ public sealed class CommandLineTests
     }
 
     [Fact]
+    public void Restore()
+    {
+        var options = CommandLineArguments.ParseRaw(new TestConsole(), [
+            "restore"
+        ]);
+        Assert.True(options!.Command is CommandArguments.RestoreArguments);
+    }
+
+    [Fact]
     public void List()
     {
         var options = CommandLineArguments.ParseRaw(new TestConsole(), [
