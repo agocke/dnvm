@@ -9,7 +9,12 @@ namespace Dnvm;
 
 public static class RestoreCommand
 {
-    public static Task<int> Run(DnvmEnv env, Logger logger)
+    public enum Result
+    {
+        Success = 0,
+        NoGlobalJson = 1,
+    }
+    public static Task<Result> Run(DnvmEnv env, Logger logger)
     {
         UPath? globalJsonPathOpt = null;
         UPath cwd = env.Cwd;
@@ -26,7 +31,7 @@ public static class RestoreCommand
         if (globalJsonPathOpt is not {} globalJsonPath)
         {
             logger.Error("No global.json found in the current directory or any of its parents.");
-            return Task.FromResult(1);
+            return Task.FromResult(Result.NoGlobalJson);
         }
 
         try
@@ -37,6 +42,6 @@ public static class RestoreCommand
         catch (IOException)
         {
         }
-        return Task.FromResult(0);
+        return Task.FromResult(Result.Success);
     }
 }

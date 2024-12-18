@@ -407,4 +407,26 @@ Options:
 
 """.NormalizeLineEndings(), console.Output.TrimLines());
     }
+
+    [Theory]
+    [InlineData("-h")]
+    [InlineData("--help")]
+    public void RestoreHelp(string param)
+    {
+        var console = new TestConsole();
+        Assert.Null(CommandLineArguments.ParseRaw(
+            console,
+            [ "restore", param ]).Command);
+        Assert.Equal("""
+usage: dnvm restore [-h | --help]
+
+Restore the SDK listed in the global.json file in or above the current directory
+to the .dotnet folder in the same directory.
+
+Options:
+    -h, --help  Show help information.
+
+
+""".NormalizeLineEndings(), console.Output.TrimLines());
+    }
 }

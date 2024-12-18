@@ -61,6 +61,8 @@ public abstract partial record DnvmSubCommand : IDeserializeProvider<DnvmSubComm
     internal sealed partial class UninstallCommandProxy;
     [GenerateDeserialize(ForType = typeof(PruneCommand))]
     internal sealed partial class PruneCommandProxy;
+    [GenerateDeserialize(ForType = typeof(RestoreCommand))]
+    internal sealed partial class RestoreCommandProxy;
 
     private sealed class Deserialize : IDeserialize<DnvmSubCommand>
     {
@@ -82,6 +84,7 @@ public abstract partial record DnvmSubCommand : IDeserializeProvider<DnvmSubComm
                 "untrack" => DeserializeSubCommand<UntrackCommand, UntrackCommandProxy>(deserializer),
                 "uninstall" => DeserializeSubCommand<UninstallCommand, UninstallCommandProxy>(deserializer),
                 "prune" => DeserializeSubCommand<PruneCommand, PruneCommandProxy>(deserializer),
+                "restore" => DeserializeSubCommand<RestoreCommand, RestoreCommandProxy>(deserializer),
                 _ => throw new DeserializeException($"Unknown command: {commandName}")
             };
             return subCommand;
@@ -258,6 +261,13 @@ public abstract partial record DnvmSubCommand : IDeserializeProvider<DnvmSubComm
         [CommandOption("--dry-run", Description = "Print the list of the SDKs to be uninstalled, but don't uninstall.")]
         public bool? DryRun { get; init; } = null;
 
+        [CommandOption("-h|--help", Description = "Show help information.")]
+        public bool? Help { get; init; } = null;
+    }
+
+    [Command("restore", Summary = "Restore the SDK listed in the global.json file in or above the current directory to the .dotnet folder in the same directory.")]
+    public sealed partial record RestoreCommand : DnvmSubCommand
+    {
         [CommandOption("-h|--help", Description = "Show help information.")]
         public bool? Help { get; init; } = null;
     }
@@ -531,6 +541,12 @@ public sealed record class CommandLineArguments(CommandArguments? Command)
                     Verbose = p.Verbose ?? false,
                     DryRun = p.DryRun ?? false,
                 });
+            case DnvmSubCommand.RestoreCommand r:
+                if (CheckHelp<DnvmSubCommand.RestoreCommandProxy>(r.Help, console))
+                {
+                    return new CommandLineArguments(Command: null);
+                }
+                return new CommandLineArguments(new CommandArguments.RestoreArguments());
             case null:
                 console.WriteLine(CmdLine.GetHelpText(SerdeInfoProvider.GetInfo<DnvmCommand>()));
                 return new CommandLineArguments(Command: null);
