@@ -198,7 +198,44 @@ public static partial class InstallCommand
 
         var ridString = Utilities.CurrentRID.ToString();
         var sdkInstallPath = UPath.Root / sdkDir.Name;
+        var downloadFile = release.Sdk.Files.Single(f => f.Rid == ridString && f.Url.EndsWith(Utilities.ZipSuffix));
+        var link = downloadFile.Url;
+        logger.Info("Download link: " + link);
 
+        logger.Log($"Downloading SDK {sdkVersion} for {ridString}");
+        var error = await InstallSdkToDir(link, sdkInstallPath, env, logger);
+
+        CreateSymlinkIfMissing(env, sdkDir);
+
+        var result = JsonSerializer.Serialize(manifest);
+        logger.Info("Existing manifest: " + result);
+
+        if (!manifest.InstalledSdks.Any(s => s.SdkVersion == sdkVersion && s.SdkDirName == sdkDir))
+        {
+            manifest = manifest with
+            {
+                InstalledSdks = manifest.InstalledSdks.Add(new InstalledSdk
+                {
+                    ReleaseVersion = release.ReleaseVersion,
+                    RuntimeVersion = release.Runtime.Version,
+                    AspNetVersion = release.AspNetCore.Version,
+                    SdkVersion = sdkVersion,
+                    SdkDirName = sdkDir,
+                })
+            };
+
+            env.WriteManifest(manifest);
+        }
+
+        return manifest;
+    }
+
+    internal static async Task<InstallError?> InstallSdkToDir(
+        string downloadUrl,
+        UPath sdkInstallPath,
+        DnvmEnv env,
+        Logger logger)
+    {
         // The Release name does not contain a version
         string archiveName = ConstructArchiveName(versionString: null, Utilities.CurrentRID, Utilities.ZipSuffix);
 
@@ -207,19 +244,10 @@ public static partial class InstallCommand
         string archivePath = Path.Combine(tempDir.Path, archiveName);
         logger.Info("Archive path: " + archivePath);
 
-        var downloadFile = release.Sdk.Files.Single(f => f.Rid == ridString && f.Url.EndsWith(Utilities.ZipSuffix));
-        var link = downloadFile.Url;
-        logger.Info("Download link: " + link);
-
-        var result = JsonSerializer.Serialize(manifest);
-        logger.Info("Existing manifest: " + result);
-
-        logger.Log($"Downloading SDK {sdkVersion} for {ridString}");
-
         var downloadError = await logger.DownloadWithProgress(
             Program.HttpClient,
             archivePath,
-            link,
+            downloadUrl,
             "Downloading SDK");
 
         if (downloadError is not null)
@@ -251,28 +279,9 @@ public static partial class InstallCommand
                 return InstallError.ExtractFailed;
             }
         }
-        CreateSymlinkIfMissing(env, sdkDir);
 
-        if (!manifest.InstalledSdks.Any(s => s.SdkVersion == sdkVersion && s.SdkDirName == sdkDir))
-        {
-            manifest = manifest with
-            {
-                InstalledSdks = manifest.InstalledSdks.Add(new InstalledSdk
-                {
-                    ReleaseVersion = release.ReleaseVersion,
-                    RuntimeVersion = release.Runtime.Version,
-                    AspNetVersion = release.AspNetCore.Version,
-                    SdkVersion = sdkVersion,
-                    SdkDirName = sdkDir,
-                })
-            };
-
-            env.WriteManifest(manifest);
-        }
-
-        return manifest;
+        return null;
     }
-
 
     internal static void CreateSymlinkIfMissing(DnvmEnv dnvmFs, SdkDirName sdkDirName)
     {
