@@ -330,7 +330,7 @@ public sealed partial class UpdateCommand
             // on the user's download speed and if they suspend/resume the process. Instead
             // we'll rely on the user to cancel the download if it's taking too long.
             using var archiveHttpStream = await _env.HttpClient.GetStreamAsync(uri);
-            await archiveHttpStream.CopyToAsync(tempFile);
+            await archiveHttpStream.CopyToAsync(tempFile, CancelScope.Current.Token);
             await tempFile.FlushAsync();
         }
         await action(tempDownloadPath);
