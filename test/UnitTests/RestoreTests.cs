@@ -793,7 +793,7 @@ public sealed class RestoreTests
             var manifest = await Manifest.ReadManifestUnsafe(env);
             var expectedManifest = Manifest.Empty
                 .AddSdk(existingVersion)
-                .AddSdk(requestedVersion);
+                .AddSdk(requestedVersion, rollForward: InstalledSdk.RollForwardOptions.Disable);
             Assert.Equal(expectedManifest, manifest);
         }
     });

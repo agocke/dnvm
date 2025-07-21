@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Semver;
 using Serde;
 using Serde.Json;
+using StaticCs;
 using StaticCs.Collections;
 using Zio;
 
@@ -33,8 +34,33 @@ public partial record InstalledSdk
     public required SemVersion SdkVersion { get; init; }
     public required SemVersion RuntimeVersion { get; init; }
     public required SemVersion AspNetVersion { get; init; }
+    public required RollForwardOptions RollForward { get; init; }
 
     public SdkDirName SdkDirName { get; init; } = DnvmEnv.DefaultSdkDirName;
+
+    [Closed]
+    public enum RollForwardOptions
+    {
+        /// <summary>
+        /// Do not roll forward.
+        /// </summary>
+        Disable,
+
+        /// <summary>
+        /// Roll forward to the latest patch version.
+        /// </summary>
+        Patch,
+
+        /// <summary>
+        /// Roll forward to the latest minor version.
+        /// </summary>
+        Minor,
+
+        /// <summary>
+        /// Roll forward to the latest major version.
+        /// </summary>
+        Major
+    }
 }
 
 public sealed partial record Manifest
@@ -76,7 +102,8 @@ partial record Manifest
     public Manifest AddSdk(
         SemVersion semVersion,
         Channel? c = null,
-        SdkDirName? sdkDirParam = null)
+        SdkDirName? sdkDirParam = null,
+        InstalledSdk.RollForwardOptions rollForward = InstalledSdk.RollForwardOptions.Disable)
     {
         if (sdkDirParam is not { } sdkDir)
         {
@@ -89,6 +116,7 @@ partial record Manifest
             RuntimeVersion = semVersion,
             AspNetVersion = semVersion,
             ReleaseVersion = semVersion,
+            RollForward = rollForward,
         };
         return AddSdk(installedSdk, c);
     }

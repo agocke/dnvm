@@ -42,6 +42,7 @@ public sealed class TrackTests
             AspNetVersion = installedVersion,
             RuntimeVersion = installedVersion,
             ReleaseVersion = installedVersion,
+            RollForward = InstalledSdk.RollForwardOptions.Patch,
             SdkDirName = DnvmEnv.DefaultSdkDirName
         } ];
         Assert.Equal(new Manifest
@@ -137,6 +138,7 @@ public sealed class TrackTests
             SdkVersion = sdkVersion,
             RuntimeVersion = releaseVersion,
             AspNetVersion = releaseVersion,
+            RollForward = InstalledSdk.RollForwardOptions.Patch,
             SdkDirName = DnvmEnv.DefaultSdkDirName
         } ], manifest.InstalledSdks);
         Assert.Equal([
@@ -166,6 +168,7 @@ public sealed class TrackTests
             SdkVersion = version,
             RuntimeVersion = version,
             AspNetVersion = version,
+            RollForward = InstalledSdk.RollForwardOptions.Patch,
             SdkDirName = DnvmEnv.DefaultSdkDirName
         } ], manifest.InstalledSdks);
     });
@@ -183,6 +186,7 @@ public sealed class TrackTests
             SdkVersion = version,
             RuntimeVersion = version,
             AspNetVersion = version,
+            RollForward = InstalledSdk.RollForwardOptions.Patch,
             SdkDirName = DnvmEnv.DefaultSdkDirName
         } ], manifest.InstalledSdks);
     });

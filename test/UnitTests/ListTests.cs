@@ -21,17 +21,8 @@ public sealed class ListTests
     {
         var previewVersion = SemVersion.Parse("4.0.0-preview1", SemVersionStyles.Strict);
         var manifest = Manifest.Empty
-            .AddSdk(new InstalledSdk() {
-                SdkVersion = new(1,0,0),
-                RuntimeVersion = new(1,0,0),
-                AspNetVersion = new(1,0,0),
-                ReleaseVersion = new(1,0,0) }, new Channel.Latest())
-            .AddSdk(new InstalledSdk() {
-                SdkVersion = previewVersion,
-                RuntimeVersion = previewVersion,
-                AspNetVersion = previewVersion,
-                ReleaseVersion = previewVersion,
-                SdkDirName = new("preview") }, new Channel.Preview());
+            .AddSdk(new SemVersion(1, 0, 0), new Channel.Latest())
+            .AddSdk(previewVersion, new Channel.Preview(), new("preview"));
 
         const string fakeHome = "/home";
         var console = new TestConsole();
@@ -66,6 +57,7 @@ Tracked channels:
                 RuntimeVersion = new(42, 42, 42),
                 AspNetVersion = new(42, 42, 42),
                 ReleaseVersion = new(42, 42, 42),
+                RollForward = InstalledSdk.RollForwardOptions.Patch,
             }, new Channel.Latest());
 
         using var testEnv = new TestEnv(DnvmEnv.DefaultDotnetFeedUrls[0], DnvmEnv.DefaultReleasesUrl);

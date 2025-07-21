@@ -107,8 +107,9 @@ public sealed class ManifestTests
         Assert.Equal(new Channel.Preview(), v5.InstalledSdkVersions[1].Channel);
     });
 
+    // If this test fails, the manifest authoring has changed and the version needs to be updated.
     [Fact]
-    public void WriteManifestV9()
+    public void WriteLatestManifest()
     {
         var manifest = new Manifest
         {
@@ -119,6 +120,7 @@ public sealed class ManifestTests
                     SdkVersion = new SemVersion(7, 0, 203),
                     RuntimeVersion = new SemVersion(7, 0, 2),
                     AspNetVersion = new SemVersion(7, 0, 2),
+                    RollForward = InstalledSdk.RollForwardOptions.Patch,
                     SdkDirName = new SdkDirName("dn")
                 }
             ],
@@ -141,7 +143,7 @@ public sealed class ManifestTests
         };
         var expected = """
 {
-    "version":9,
+    "version": 10,
     "previewsEnabled": false,
     "currentSdkDir": "dn",
     "installedSdks":[
@@ -150,6 +152,7 @@ public sealed class ManifestTests
             "sdkVersion":"7.0.203",
             "runtimeVersion":"7.0.2",
             "aspNetVersion":"7.0.2",
+            "rollForward": "patch",
             "sdkDirName": "dn"
         }
     ],

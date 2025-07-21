@@ -151,8 +151,8 @@ public sealed partial class UpdateCommand
                 if (response?.Trim().ToLowerInvariant() == "y")
                 {
                     // Find releases
-                    var releasesToInstall = new HashSet<(ChannelReleaseIndex.Component, ChannelReleaseIndex.Release, SdkDirName)>();
-                    foreach (var (c, _, newestAvailable, sdkDir) in updateResults)
+                    var releasesToInstall = new HashSet<(ChannelReleaseIndex.Component, ChannelReleaseIndex.Release, SdkDirName, InstalledSdk?)>();
+                    foreach (var (c, sdk, newestAvailable, sdkDir) in updateResults)
                     {
                         var latestSdkVersion = SemVersion.Parse(newestAvailable.LatestSdk, SemVersionStyles.Strict);
 
@@ -163,11 +163,11 @@ public sealed partial class UpdateCommand
                                 + "This is either a bug or the .NET index is incorrect. Please a file a bug at https://github.com/dn-vm/dnvm.");
                             return UpdateFailed;
                         }
-                        releasesToInstall.Add((component, release, sdkDir));
+                        releasesToInstall.Add((component, release, sdkDir, sdk));
                     }
 
                     // Install releases
-                    foreach (var (component, release, sdkDir) in releasesToInstall)
+                    foreach (var (component, release, sdkDir, sdkOpt) in releasesToInstall)
                     {
                         var latestSdkVersion = release.Sdk.Version;
                         var result = await InstallCommand.InstallSdk(
@@ -177,6 +177,7 @@ public sealed partial class UpdateCommand
                             component,
                             release,
                             sdkDir,
+                            sdkOpt?.RollForward ?? InstalledSdk.RollForwardOptions.Patch, // default roll forward for updates is 'patch'
                             logger);
 
                         if (result is not Result<Manifest, InstallCommand.InstallError>.Ok(var newManifest))
@@ -215,24 +216,65 @@ public sealed partial class UpdateCommand
         return Success;
     }
 
-    public static List<(Channel TrackedChannel, SemVersion? NewestInstalled, DotnetReleasesIndex.ChannelIndex NewestAvailable, SdkDirName SdkDir)> FindPotentialUpdates(
+    public sealed record UpdateResult(
+        Channel TrackedChannel,
+        InstalledSdk? NewestInstalled,
+        DotnetReleasesIndex.ChannelIndex NewestAvailable,
+        SdkDirName SdkDir
+    );
+
+    public static List<UpdateResult> FindPotentialUpdates(
         Manifest manifest,
         DotnetReleasesIndex releaseIndex)
     {
-        var list = new List<(Channel, SemVersion?, DotnetReleasesIndex.ChannelIndex, SdkDirName)>();
+        var list = new List<UpdateResult>();
         foreach (var tracked in manifest.RegisteredChannels)
         {
-            var newestInstalled = tracked.InstalledSdkVersions
+            var maxVersion = tracked.InstalledSdkVersions
                 .Max(SemVersion.PrecedenceComparer);
+            var maxInstalled = maxVersion is null
+                ? null
+                : manifest.InstalledSdks
+                .Single(sdk => sdk.SdkVersion == maxVersion && sdk.SdkDirName == tracked.SdkDirName);
+
             var release = releaseIndex.GetChannelIndex(tracked.ChannelName);
-            if (release is { LatestSdk: var sdkVersion} &&
+            if (release is { LatestSdk: var sdkVersion } &&
                 SemVersion.TryParse(sdkVersion, SemVersionStyles.Strict, out var newestAvailable) &&
-                SemVersion.ComparePrecedence(newestInstalled, newestAvailable) < 0)
+                IsValidUpdate(maxInstalled, newestAvailable))
             {
-                list.Add((tracked.ChannelName, newestInstalled, release, tracked.SdkDirName));
+                list.Add(new(tracked.ChannelName, maxInstalled, release, tracked.SdkDirName));
             }
         }
         return list;
+    }
+
+    /// <summary>
+    /// True if the candidate version is valid to roll forward to from the installed version.
+    /// </summary>
+    private static bool IsValidUpdate(InstalledSdk? installed, SemVersion candidate)
+    {
+        // All SDKs are better than null
+        if (installed is null)
+        {
+            return true;
+        }
+
+        // Check if the candidate version is greater than the installed version
+        if (SemVersion.ComparePrecedence(installed.SdkVersion, candidate) >= 0)
+        {
+            return false;
+        }
+
+        // Check if the candidate version is valid for the installed roll forward options.
+        // The following comparisons return 0 if the versions are "compatible"
+        Comparison<SemVersion> comparison = installed.RollForward switch
+        {
+            InstalledSdk.RollForwardOptions.Disable => (a, b) => a == b ? 0 : -1,
+            InstalledSdk.RollForwardOptions.Patch => RollForwardComparisons.LatestPatchComparison,
+            InstalledSdk.RollForwardOptions.Minor => RollForwardComparisons.LatestMinorComparison,
+            InstalledSdk.RollForwardOptions.Major => RollForwardComparisons.LatestMajorComparison,
+        };
+        return comparison(candidate, installed.SdkVersion) == 0;
     }
 
     public async Task<Result> UpdateSelf(Manifest manifest)
@@ -250,7 +292,7 @@ public sealed partial class UpdateCommand
                 return Result.SelfUpdateFailed;
             case (false, _):
                 return Result.Success;
-            case (true, {} r):
+            case (true, { } r):
                 release = r;
                 break;
             default:

@@ -121,7 +121,17 @@ public static partial class InstallCommand
             return Result.UnknownChannel;
         }
 
-        var installError = await InstallSdk(@lock, env, manifest, sdkComponent, release, sdkDir, logger);
+        var installError = await InstallSdk(
+            @lock,
+            env,
+            manifest,
+            sdkComponent,
+            release,
+            sdkDir,
+            // SDKs installed by `install` should not roll forward by default
+            InstalledSdk.RollForwardOptions.Disable,
+            logger
+        );
         if (installError is not Result<Manifest, InstallError>.Ok)
         {
             return Result.InstallError;
@@ -304,6 +314,7 @@ public static partial class InstallCommand
         ChannelReleaseIndex.Component sdkComponent,
         ChannelReleaseIndex.Release release,
         SdkDirName sdkDir,
+        InstalledSdk.RollForwardOptions rollForward,
         Logger logger)
     {
         var sdkVersion = sdkComponent.Version;
@@ -347,6 +358,7 @@ public static partial class InstallCommand
                     AspNetVersion = release.AspNetCore.Version,
                     SdkVersion = sdkVersion,
                     SdkDirName = sdkDir,
+                    RollForward = rollForward
                 })
             };
 

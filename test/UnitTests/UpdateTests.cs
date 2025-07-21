@@ -42,6 +42,7 @@ public sealed class UpdateTests
                 AspNetVersion = new(42, 42, 142),
                 RuntimeVersion = new(42, 42, 142),
                 ReleaseVersion = new(42, 42, 142),
+                RollForward = InstalledSdk.RollForwardOptions.Patch,
                 SdkDirName = sdkDir
             } ],
             RegisteredChannels =
@@ -79,6 +80,7 @@ public sealed class UpdateTests
                 AspNetVersion = installedVersion,
                 RuntimeVersion = installedVersion,
                 ReleaseVersion = installedVersion,
+                RollForward = InstalledSdk.RollForwardOptions.Major,
             }] ,
             RegisteredChannels = [ new RegisteredChannel {
                 ChannelName = new Channel.Latest(),
@@ -90,7 +92,7 @@ public sealed class UpdateTests
         var results = UpdateCommand.FindPotentialUpdates(manifest, releasesIndex);
         var (channel, newestInstalled, newestAvailable, sdkDir) = results[0];
         Assert.Equal(new Channel.Latest(), channel);
-        Assert.Equal(new SemVersion(41, 0, 0), newestInstalled);
+        Assert.Equal(new SemVersion(41, 0, 0), newestInstalled?.SdkVersion);
         Assert.Equal("42.42.42", newestAvailable!.LatestRelease);
         Assert.Equal(DnvmEnv.DefaultSdkDirName, sdkDir);
         Assert.Single(results);
@@ -121,6 +123,7 @@ public sealed class UpdateTests
                 AspNetVersion = v,
                 RuntimeVersion = v,
                 ReleaseVersion = v,
+                RollForward = InstalledSdk.RollForwardOptions.Patch,
                 SdkDirName = DnvmEnv.DefaultSdkDirName }).ToEq(),
             RegisteredChannels = [ new RegisteredChannel() {
                 ChannelName = channel,
@@ -276,12 +279,14 @@ public sealed class UpdateTests
                 ReleaseVersion = oldReleaseVersion,
                 RuntimeVersion = oldReleaseVersion,
                 AspNetVersion = oldReleaseVersion,
+                RollForward = InstalledSdk.RollForwardOptions.Patch,
             },
             new() {
                 SdkVersion = newSdkVersion,
                 ReleaseVersion = newSdkVersion,
                 RuntimeVersion = newSdkVersion,
                 AspNetVersion = newSdkVersion,
+                RollForward = InstalledSdk.RollForwardOptions.Patch,
             } ], manifest.InstalledSdks);
         Assert.Equal([
             new() {
@@ -385,6 +390,7 @@ public sealed class UpdateTests
                 ReleaseVersion = initialVersion,
                 RuntimeVersion = initialVersion,
                 AspNetVersion = initialVersion,
+                RollForward = InstalledSdk.RollForwardOptions.Patch,
                 SdkDirName = DnvmEnv.DefaultSdkDirName
             },
             new InstalledSdk
@@ -393,6 +399,7 @@ public sealed class UpdateTests
                 ReleaseVersion = updatedVersion,
                 RuntimeVersion = updatedVersion,
                 AspNetVersion = updatedVersion,
+                RollForward = InstalledSdk.RollForwardOptions.Patch,
                 SdkDirName = DnvmEnv.DefaultSdkDirName
             },
             new InstalledSdk
@@ -401,6 +408,7 @@ public sealed class UpdateTests
                 ReleaseVersion = updatedVersion,
                 RuntimeVersion = updatedVersion,
                 AspNetVersion = updatedVersion,
+                RollForward = InstalledSdk.RollForwardOptions.Patch,
                 SdkDirName = new("custom-sdk-dir")
             }
         ], manifest.InstalledSdks);

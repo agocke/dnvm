@@ -29,15 +29,15 @@ public sealed class UninstallTests
         var ltsVersion = SemVersion.Parse(server.ReleasesIndexJson.ChannelIndices[0].LatestSdk, SemVersionStyles.Strict);
         var previewVersion = SemVersion.Parse(server.ReleasesIndexJson.ChannelIndices[1].LatestSdk, SemVersionStyles.Strict);
         var expectedManifest = Manifest.Empty
-            .AddSdk(ltsVersion, new Channel.Latest(), DnvmEnv.DefaultSdkDirName)
-            .AddSdk(previewVersion, new Channel.Preview(), new SdkDirName("preview"));
+            .AddSdk(ltsVersion, new Channel.Latest(), DnvmEnv.DefaultSdkDirName, InstalledSdk.RollForwardOptions.Patch)
+            .AddSdk(previewVersion, new Channel.Preview(), new SdkDirName("preview"), InstalledSdk.RollForwardOptions.Patch);
         var manifest = await Manifest.ReadManifestUnsafe(env);
         Assert.Equal(expectedManifest, manifest);
         var unResult = await UninstallCommand.Run(env, _logger, ltsVersion);
         Assert.Equal(0, unResult);
         manifest = await Manifest.ReadManifestUnsafe(env);
         var previewOnly = Manifest.Empty
-            .AddSdk(previewVersion, new Channel.Preview(), new SdkDirName("preview"));
+            .AddSdk(previewVersion, new Channel.Preview(), new SdkDirName("preview"), InstalledSdk.RollForwardOptions.Patch);
         previewOnly = previewOnly with {
             RegisteredChannels = manifest.RegisteredChannels
         };
@@ -93,7 +93,7 @@ public sealed class UninstallTests
         Assert.Equal(TrackCommand.Result.Success, result);
 
         var ltsVersion = SemVersion.Parse(server.ReleasesIndexJson.ChannelIndices[0].LatestSdk, SemVersionStyles.Strict);
-        
+
         // Manually remove some directories to simulate missing directories
         var sdkDir = UPath.Root / "dn" / "sdk" / ltsVersion.ToString();
         var runtimeDir = UPath.Root / "dn" / "shared" / "Microsoft.NETCore.App" / ltsVersion.ToString();
@@ -102,14 +102,14 @@ public sealed class UninstallTests
 
         var console = (TestConsole)env.Console;
         var trimOutput = console.Output;
-        
+
         // Uninstall should succeed despite missing directories
         var unResult = await UninstallCommand.Run(env, _logger, ltsVersion);
         var actualOutput = console.Output[trimOutput.Length..];
-        
+
         Assert.Equal(0, unResult);
         Assert.Contains("not found, skipping", actualOutput);
-        
+
         // Verify manifest is still updated correctly
         var manifest = await Manifest.ReadManifestUnsafe(env);
         Assert.Empty(manifest.InstalledSdks);

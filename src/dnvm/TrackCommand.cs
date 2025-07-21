@@ -222,6 +222,7 @@ Proceeding without SDK installation.
                 component,
                 release,
                 sdkDir,
+                InstalledSdk.RollForwardOptions.Patch, // default roll forward for tracking is 'patch'
                 logger);
 
             if (installResult is not Result<Manifest, InstallCommand.InstallError>.Ok(var newManifest))
