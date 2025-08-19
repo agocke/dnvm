@@ -3,8 +3,8 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Semver;
-using Serde;
 using Serde.Json;
+using StaticCs;
 using StaticCs.Collections;
 using Zio;
 
@@ -33,6 +33,7 @@ public partial record InstalledSdk
     public required SemVersion SdkVersion { get; init; }
     public required SemVersion RuntimeVersion { get; init; }
     public required SemVersion AspNetVersion { get; init; }
+    public RollForwardOptions RollForward { get; init; } = RollForwardOptions.LatestPatch;
 
     public SdkDirName SdkDirName { get; init; } = DnvmEnv.DefaultSdkDirName;
 }
@@ -89,6 +90,7 @@ partial record Manifest
             RuntimeVersion = semVersion,
             AspNetVersion = semVersion,
             ReleaseVersion = semVersion,
+            RollForward = RollForwardOptions.LatestPatch
         };
         return AddSdk(installedSdk, c);
     }

@@ -12,11 +12,19 @@ using Serde.Json;
 using Spectre.Console;
 using StaticCs;
 using static Dnvm.UpdateCommand.Result;
+using RollForward = Dnvm.GlobalJsonSubset.SdkSubset.RollForwardOptions;
 
 namespace Dnvm;
 
 public sealed partial class UpdateCommand
 {
+    public sealed record PotentialUpdate(
+        Channel TrackedChannel,
+        SemVersion? NewestInstalled,
+        DotnetReleasesIndex.ChannelIndex NewestAvailable,
+        SdkDirName SdkDir,
+        RollForward RollForward);
+
     public sealed record Options
     {
         /// <summary>
@@ -141,9 +149,14 @@ public sealed partial class UpdateCommand
                 table.AddColumn("Channel");
                 table.AddColumn("Installed");
                 table.AddColumn("Available");
-                foreach (var (c, newestInstalled, newestAvailable, _) in updateResults)
+                table.AddColumn("Roll Forward");
+                foreach (var update in updateResults)
                 {
-                    table.AddRow(c.ToString(), newestInstalled?.ToString() ?? "(none)", newestAvailable.LatestSdk);
+                    table.AddRow(
+                        update.TrackedChannel.ToString(),
+                        update.NewestInstalled?.ToString() ?? "(none)",
+                        update.NewestAvailable.LatestSdk,
+                        update.RollForward.ToString());
                 }
                 env.Console.Write(table);
                 env.Console.WriteLine("Install updates? [y/N]: ");
@@ -152,18 +165,18 @@ public sealed partial class UpdateCommand
                 {
                     // Find releases
                     var releasesToInstall = new HashSet<(ChannelReleaseIndex.Component, ChannelReleaseIndex.Release, SdkDirName)>();
-                    foreach (var (c, _, newestAvailable, sdkDir) in updateResults)
+                    foreach (var update in updateResults)
                     {
-                        var latestSdkVersion = SemVersion.Parse(newestAvailable.LatestSdk, SemVersionStyles.Strict);
+                        var latestSdkVersion = SemVersion.Parse(update.NewestAvailable.LatestSdk, SemVersionStyles.Strict);
 
-                        var result = await InstallCommand.TryGetReleaseFromIndex(env.HttpClient, releasesIndex, c, latestSdkVersion);
+                        var result = await InstallCommand.TryGetReleaseFromIndex(env.HttpClient, releasesIndex, update.TrackedChannel, latestSdkVersion);
                         if (result is not ({} component, {} release))
                         {
-                            env.Console.Error($"Index does not contain release for channel '{c}' with version '{latestSdkVersion}'."
+                            env.Console.Error($"Index does not contain release for channel '{update.TrackedChannel}' with version '{latestSdkVersion}'."
                                 + "This is either a bug or the .NET index is incorrect. Please a file a bug at https://github.com/dn-vm/dnvm.");
                             return UpdateFailed;
                         }
-                        releasesToInstall.Add((component, release, sdkDir));
+                        releasesToInstall.Add((component, release, update.SdkDir));
                     }
 
                     // Install releases
@@ -188,12 +201,12 @@ public sealed partial class UpdateCommand
                     }
 
                     // Update manifest for tracked channels
-                    foreach (var (c, _, newestAvailable, _) in updateResults)
+                    foreach (var update in updateResults)
                     {
-                        var latestSdkVersion = SemVersion.Parse(newestAvailable.LatestSdk, SemVersionStyles.Strict);
+                        var latestSdkVersion = SemVersion.Parse(update.NewestAvailable.LatestSdk, SemVersionStyles.Strict);
 
 
-                        foreach (var oldTracked in manifest.RegisteredChannels.Where(t => t.ChannelName == c))
+                        foreach (var oldTracked in manifest.RegisteredChannels.Where(t => t.ChannelName == update.TrackedChannel))
                         {
                             var newTracked = oldTracked with
                             {
@@ -215,21 +228,47 @@ public sealed partial class UpdateCommand
         return Success;
     }
 
-    public static List<(Channel TrackedChannel, SemVersion? NewestInstalled, DotnetReleasesIndex.ChannelIndex NewestAvailable, SdkDirName SdkDir)> FindPotentialUpdates(
+    public static List<PotentialUpdate> FindPotentialUpdates(
         Manifest manifest,
         DotnetReleasesIndex releaseIndex)
     {
-        var list = new List<(Channel, SemVersion?, DotnetReleasesIndex.ChannelIndex, SdkDirName)>();
-        foreach (var tracked in manifest.RegisteredChannels)
+        var list = new List<PotentialUpdate>();
+        foreach (var tracked in manifest.TrackedChannels())
         {
             var newestInstalled = tracked.InstalledSdkVersions
                 .Max(SemVersion.PrecedenceComparer);
+
+            if (newestInstalled is null)
+            {
+                continue;
+            }
+
+            var installed = manifest.InstalledSdks.First(s => s.SdkVersion == newestInstalled && s.SdkDirName == tracked.SdkDirName);
+
+            var rollForward = installed.RollForward;
+
             var release = releaseIndex.GetChannelIndex(tracked.ChannelName);
             if (release is { LatestSdk: var sdkVersion} &&
                 SemVersion.TryParse(sdkVersion, SemVersionStyles.Strict, out var newestAvailable) &&
                 SemVersion.ComparePrecedence(newestInstalled, newestAvailable) < 0)
             {
-                list.Add((tracked.ChannelName, newestInstalled, release, tracked.SdkDirName));
+                bool found = rollForward switch
+                {
+                    RollForward.Major => newestAvailable.Major > newestInstalled.Major,
+                    RollForward.Minor => newestAvailable.Major != newestInstalled.Major || newestAvailable.Minor > newestInstalled.Minor,
+                    RollForward.Feature => newestAvailable.Major != newestInstalled.Major || newestAvailable.Minor != newestInstalled.Minor || newestAvailable.Patch / 100 > newestInstalled.Patch / 100,
+                    RollForward.LatestPatch => newestAvailable.Major == newestInstalled.Major && newestAvailable.Minor == newestInstalled.Minor && newestAvailable.Patch > newestInstalled.Patch,
+                    _ => false
+                };
+                if (found)
+                {
+                    list.Add(new PotentialUpdate(
+                        tracked.ChannelName,
+                        newestInstalled,
+                        release,
+                        tracked.SdkDirName,
+                        rollForward));
+                }
             }
         }
         return list;

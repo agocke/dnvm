@@ -1,4 +1,3 @@
-
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -60,34 +59,21 @@ public sealed class PruneCommand
 
     public static List<(SemVersion Version, SdkDirName Dir)> GetOutOfDateSdks(Manifest manifest)
     {
-        var latestMajorMinorInDirs = new Dictionary<(SdkDirName Dir, string MajorMinor), SemVersion>();
         var sdksToRemove = new List<(SemVersion, SdkDirName)>();
         foreach (var sdk in manifest.InstalledSdks)
         {
-            var majorMinor = sdk.SdkVersion.ToMajorMinor();
-            var dir = sdk.SdkDirName;
-            if (latestMajorMinorInDirs.TryGetValue((sdk.SdkDirName, majorMinor), out var latest))
+            // Find all SDKs that could be replaced by this one
+            foreach (var other in manifest.InstalledSdks)
             {
-                int order = sdk.SdkVersion.ComparePrecedenceTo(latest);
-                if (order < 0)
+                if (sdk == other)
                 {
-                    // This sdk is older than the latest in the same dir
-                    sdksToRemove.Add((sdk.SdkVersion, dir));
+                    continue;
                 }
-                else if (order > 0)
+
+                if (VersionUtils.IsUpdate(other.SdkVersion, sdk.SdkVersion, other.RollForward))
                 {
-                    // This sdk is newer than the latest in the same dir
-                    sdksToRemove.Add((latest, dir));
-                    latestMajorMinorInDirs[(sdk.SdkDirName, majorMinor)] = sdk.SdkVersion;
+                    sdksToRemove.Add((other.SdkVersion, other.SdkDirName));
                 }
-                else
-                {
-                    // same version, do nothing
-                }
-            }
-            else
-            {
-                latestMajorMinorInDirs[(sdk.SdkDirName, majorMinor)] = sdk.SdkVersion;
             }
         }
         return sdksToRemove;

@@ -1,4 +1,3 @@
-
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -16,7 +15,7 @@ using RollForwardOptions =  Dnvm.GlobalJsonSubset.SdkSubset.RollForwardOptions;
 namespace Dnvm;
 
 [GenerateDeserialize]
-internal sealed partial record GlobalJsonSubset
+public sealed partial record GlobalJsonSubset
 {
     public SdkSubset? Sdk { get; init; }
 
